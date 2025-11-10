@@ -1,24 +1,67 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Parameters for secure web application deployment with environment-specific configurations",
+    "environment": "dev",
+    "deploymentType": "azureResourceGroup"
+  },
   "parameters": {
+    "environment": {
+      "value": "dev"
+    },
+    "projectName": {
+      "value": "employeeportal"
+    },
+    "location": {
+      "value": "East US"
+    },
     "hostingPlanName": {
-      "value": "houssemdellai-service-plan"
+      "value": "asp-employeeportal-dev"
     },
-    "administratorLogin": {
-      "value": "houssem"
+    "skuName": {
+      "value": "S1"
     },
-    "administratorLoginPassword": {
-      "value": "@Aa123456"
+    "skuCapacity": {
+      "value": 1
+    },
+    "sqlAdministratorLogin": {
+      "value": "sqladmin"
+    },
+    "sqlAdministratorPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/kv-rg/providers/Microsoft.KeyVault/vaults/employeeportal-kv-dev"
+        },
+        "secretName": "sqlAdminPassword"
+      }
     },
     "databaseName": {
-      "value": "EmployeesDB"
+      "value": "EmployeePortalDB"
     },
-    "webSiteName": {
-      "value": "houssemdellai-webapp"
+    "webAppName": {
+      "value": "app-employeeportal-dev"
     },
-    "sqlserverName": {
-      "value": "houssemdellai-sql"
+    "sqlServerName": {
+      "value": "sql-employeeportal-dev"
+    },
+    "enablePrivateEndpoints": {
+      "value": false
+    },
+    "allowedIpAddress": {
+      "value": ""
+    },
+    "enableDiagnosticSettings": {
+      "value": true
+    },
+    "retentionInDays": {
+      "value": 30
+    },
+    "minTlsVersion": {
+      "value": "1.2"
+    },
+    "ftpsState": {
+      "value": "FtpsOnly"
     }
   }
 }
