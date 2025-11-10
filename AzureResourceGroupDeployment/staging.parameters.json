@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Staging environment parameters",
+    "environment": "staging"
+  },
+  "parameters": {
+    "environment": { "value": "staging" },
+    "projectName": { "value": "employeeportal" },
+    "skuName": { "value": "S2" },
+    "skuCapacity": { "value": 2 },
+    "sqlAdministratorLogin": { "value": "sqladmin" },
+    "sqlAdministratorPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/kv-rg/providers/Microsoft.KeyVault/vaults/employeeportal-kv-staging"
+        },
+        "secretName": "sqlAdminPassword"
+      }
+    },
+    "enablePrivateEndpoints": { "value": true },
+    "allowedIpAddress": { "value": "" },
+    "minTlsVersion": { "value": "1.2" }
+  }
+}
