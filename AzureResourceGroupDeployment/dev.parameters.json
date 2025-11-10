@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Development environment parameters",
+    "environment": "dev"
+  },
+  "parameters": {
+    "environment": { "value": "dev" },
+    "projectName": { "value": "employeeportal" },
+    "skuName": { "value": "S1" },
+    "skuCapacity": { "value": 1 },
+    "sqlAdministratorLogin": { "value": "sqladmin" },
+    "sqlAdministratorPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/kv-rg/providers/Microsoft.KeyVault/vaults/employeeportal-kv-dev"
+        },
+        "secretName": "sqlAdminPassword"
+      }
+    },
+    "enablePrivateEndpoints": { "value": false },
+    "allowedIpAddress": { "value": "" },
+    "minTlsVersion": { "value": "1.2" }
+  }
+}
