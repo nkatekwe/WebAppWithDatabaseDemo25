@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Production environment parameters - SECURE CONFIGURATION",
+    "environment": "prod"
+  },
+  "parameters": {
+    "environment": { "value": "prod" },
+    "projectName": { "value": "employeeportal" },
+    "skuName": { "value": "S3" },
+    "skuCapacity": { "value": 3 },
+    "sqlAdministratorLogin": { "value": "sqladmin" },
+    "sqlAdministratorPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/kv-rg/providers/Microsoft.KeyVault/vaults/employeeportal-kv-prod"
+        },
+        "secretName": "sqlAdminPassword"
+      }
+    },
+    "enablePrivateEndpoints": { "value": true },
+    "allowedIpAddress": { "value": "203.0.113.10" },
+    "minTlsVersion": { "value": "1.2" },
+    "retentionInDays": { "value": 365 }
+  }
+}
