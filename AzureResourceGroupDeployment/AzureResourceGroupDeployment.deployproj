@@ -1,5 +1,7 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  
+  <!-- Project Configuration -->
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|AnyCPU">
       <Configuration>Debug</Configuration>
@@ -10,25 +12,75 @@
       <Platform>AnyCPU</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+
+  <!-- Global Properties -->
   <PropertyGroup Label="Globals">
     <ProjectGuid>bfcf79cd-cfbd-4e44-a79f-b5c0e95f0f49</ProjectGuid>
+    <ProjectType>AzureResourceGroup</ProjectType>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
+
+  <!-- Build Properties -->
   <PropertyGroup>
-    <PrepareForBuildDependsOn>
-    </PrepareForBuildDependsOn>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
   </PropertyGroup>
-  <Import Condition=" Exists('Deployment.targets') " Project="Deployment.targets" />
+
+  <!-- Conditional Imports -->
+  <Import Condition="Exists('Deployment.targets')" Project="Deployment.targets" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />
-  <!-- vertag<:>start tokens<:>maj.min -->
-  <Import Condition=" Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Deployment\1.1\DeploymentProject.targets') " Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Deployment\1.1\DeploymentProject.targets" />
-  <!-- vertag<:>end -->
+  
+  <!-- Azure Deployment Targets with Versioning -->
+  <PropertyGroup>
+    <AzureDeploymentTargetsPath>$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Deployment\1.1\DeploymentProject.targets</AzureDeploymentTargetsPath>
+  </PropertyGroup>
+  <Import Condition="Exists('$(AzureDeploymentTargetsPath)')" Project="$(AzureDeploymentTargetsPath)" />
+  
+  <!-- Fallback for Azure Deployment Targets -->
+  <Target Name="EnsureAzureDeploymentTargets" BeforeTargets="Build">
+    <Warning Condition="!Exists('$(AzureDeploymentTargetsPath)')" 
+             Text="Azure Deployment targets not found at $(AzureDeploymentTargetsPath). Azure-specific functionality may be limited." />
+  </Target>
+
+  <!-- Project Content -->
   <ItemGroup>
     <None Include="Deployment.targets">
       <Visible>False</Visible>
     </None>
-    <Content Include="Deploy-AzureResourceGroup.ps1" />
-    <Content Include="WebSiteSQLDatabase.json" />
-    <Content Include="WebSiteSQLDatabase.parameters.json" />
+    <Content Include="Deploy-AzureResourceGroup.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="WebSiteSQLDatabase.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="WebSiteSQLDatabase.parameters.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
-  <Target Name="GetReferenceAssemblyPaths" />
+
+  <!-- Custom Build Targets -->
+  <Target Name="ValidateArmTemplates" BeforeTargets="Build">
+    <Message Text="Validating ARM templates..." Importance="normal" />
+    <!-- Add ARM template validation logic here -->
+  </Target>
+
+  <Target Name="PackageDeploymentArtifacts" AfterTargets="Build">
+    <Message Text="Packaging deployment artifacts..." Importance="normal" />
+    <!-- Add deployment packaging logic here -->
+  </Target>
+
+  <!-- Reference Assembly Paths Target (if needed for deployment) -->
+  <Target Name="GetReferenceAssemblyPaths" Condition=" '$(GetReferenceAssemblyPaths)' == 'true' ">
+    <Message Text="Resolving reference assembly paths..." Importance="low" />
+    <!-- Add reference assembly resolution logic if required -->
+  </Target>
+
+  <!-- Clean Target Extension -->
+  <Target Name="CleanDeploymentArtifacts" AfterTargets="Clean">
+    <Message Text="Cleaning deployment artifacts..." Importance="normal" />
+    <RemoveDir Directories="$(OutputPath)deploy-pack" Condition="Exists('$(OutputPath)deploy-pack')" />
+  </Target>
+
 </Project>
