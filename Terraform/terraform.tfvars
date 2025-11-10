@@ -1,0 +1,5 @@
+resource_group_name = "my-resource-group"
+location           = "East US"
+app_service_name   = "my-app-service"
+sql_admin_username = "adminuser"
+sql_admin_password = "SecurePassword123!"
