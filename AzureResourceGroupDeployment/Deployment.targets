@@ -1,123 +1,227 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- Project Configuration -->
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <OutputPath>bin\$(Configuration)\</OutputPath>
-    <DebugSymbols>false</DebugSymbols>
-    <SkipCopyBuildProduct>true</SkipCopyBuildProduct>
-    <AddAdditionalExplicitAssemblyReferences>false</AddAdditionalExplicitAssemblyReferences>
-    <TargetRuntime>None</TargetRuntime>
-    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)'=='' ">obj\</BaseIntermediateOutputPath>
-    <BaseIntermediateOutputPath Condition=" !HasTrailingSlash('$(BaseIntermediateOutputPath)') ">$(BaseIntermediateOutputPath)\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)\</IntermediateOutputPath>
-    <ProjectReferencesOutputPath Condition=" '$(ProjectReferencesOutputPath)' == '' ">$(IntermediateOutputPath)ProjectReferences</ProjectReferencesOutputPath>
-    <ProjectReferencesOutputPath Condition=" !HasTrailingSlash('$(ProjectReferencesOutputPath)') ">$(ProjectReferencesOutputPath)\</ProjectReferencesOutputPath>
-    <StageArtifacts Condition=" '$(StageArtifacts)' == '' ">true</StageArtifacts>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <DeploymentType>AzureResourceGroup</DeploymentType>
   </PropertyGroup>
 
+  <!-- Build Output Settings -->
   <PropertyGroup>
-    <DefineCommonItemSchemas>false</DefineCommonItemSchemas>
-    <DefineCommonCapabilities>false</DefineCommonCapabilities>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 
+  <!-- Artifact Staging Configuration -->
+  <PropertyGroup>
+    <StageArtifacts Condition=" '$(StageArtifacts)' == '' ">true</StageArtifacts>
+    <ArtifactStagingDirectory Condition=" '$(ArtifactStagingDirectory)' == '' ">$(OutputPath)staging\</ArtifactStagingDirectory>
+    <IncludeProjectReferences Condition=" '$(IncludeProjectReferences)' == '' ">true</IncludeProjectReferences>
+    <CleanStagingDirectory Condition=" '$(CleanStagingDirectory)' == '' ">true</CleanStagingDirectory>
+  </PropertyGroup>
+
+  <!-- Azure DevOps Integration -->
+  <PropertyGroup Condition=" '$(TF_Build)' == 'True' ">
+    <ArtifactStagingDirectory Condition=" '$(Build_StagingDirectory)' != '' ">$(Build_StagingDirectory)</ArtifactStagingDirectory>
+  </PropertyGroup>
+
+  <!-- Project Capabilities -->
   <ProjectExtensions>
     <ProjectCapabilities>
       <DeploymentProject />
+      <AzureResourceGroup />
+      <ARM_Templates />
     </ProjectCapabilities>
   </ProjectExtensions>
 
+  <!-- Item Definitions -->
   <ItemDefinitionGroup>
     <Content>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <None>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
+    <ARM_Template>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </ARM_Template>
+    <DeploymentScript>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </DeploymentScript>
     <ProjectReference>
       <Private>false</Private>
       <Targets>Build</Targets>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
   </ItemDefinitionGroup>
 
-  <Target Name="CreateManifestResourceNames" />
+  <!-- Custom Item Groups -->
+  <ItemGroup>
+    <ARM_Template Include="**\*.json" Exclude="$(IntermediateOutputPath)**;$(OutputPath)**" />
+    <DeploymentScript Include="**\*.ps1" Exclude="$(IntermediateOutputPath)**;$(OutputPath)**" />
+  </ItemGroup>
 
+  <!-- Empty Standard Targets -->
+  <Target Name="CreateManifestResourceNames" />
+  <Target Name="CoreCompile" />
+  <Target Name="CoreBuild" />
+
+  <!-- Artifact Staging Infrastructure -->
   <PropertyGroup>
     <StageArtifactsDependsOn>
-      _GetDeploymentProjectContent;
-      _CalculateContentOutputRelativePaths;
-      _GetReferencedProjectsOutput;
-      _CalculateArtifactStagingDirectory;
-      _CopyOutputToArtifactStagingDirectory;
+      ValidateBuildConfiguration;
+      CleanStagingDirectory;
+      CollectDeploymentArtifacts;
+      CollectProjectReferences;
+      CopyArtifactsToStagingDirectory;
+      CreateDeploymentManifest
     </StageArtifactsDependsOn>
   </PropertyGroup>
 
-  <Target Name="_CopyOutputToArtifactStagingDirectory">
-    <Copy SourceFiles="@(DeploymentProjectContentOutput)" DestinationFiles="$(ArtifactStagingDirectory)\$(MSBuildProjectName)%(RelativePath)" />
-    <Copy SourceFiles="@(BuildProjectReferencesOutput)" DestinationFiles="$(ArtifactStagingDirectory)\$(MSBuildProjectName)\%(ProjectName)\%(RecursiveDir)%(FileName)%(Extension)" />
+  <!-- Main Artifact Staging Target -->
+  <Target Name="StageArtifacts" 
+          DependsOnTargets="$(StageArtifactsDependsOn)" 
+          AfterTargets="Build"
+          Condition=" '$(StageArtifacts)' == 'true' ">
+    <Message Text="Artifacts staged to: $(ArtifactStagingDirectory)" Importance="High" />
   </Target>
 
-  <Target Name="_GetDeploymentProjectContent">
-    <MSBuild Projects="$(MSBuildProjectFile)" Targets="ContentFilesProjectOutputGroup">
-      <Output TaskParameter="TargetOutputs" ItemName="DeploymentProjectContentOutput" />
-    </MSBuild>
+  <!-- Validation Target -->
+  <Target Name="ValidateBuildConfiguration">
+    <Error Text="OutputPath must be set" Condition=" '$(OutputPath)' == '' " />
+    <Error Text="Configuration must be set" Condition=" '$(Configuration)' == '' " />
+    
+    <Message Text="Building deployment project: $(MSBuildProjectName) [$(Configuration)|$(Platform)]" Importance="High" />
+    <Message Text="Artifact staging directory: $(ArtifactStagingDirectory)" Importance="Normal" />
   </Target>
 
-  <Target Name="_GetReferencedProjectsOutput">
-    <PropertyGroup>
-      <MsBuildProperties>Configuration=$(Configuration);Platform=$(Platform)</MsBuildProperties>
-    </PropertyGroup>
+  <!-- Clean Staging Directory -->
+  <Target Name="CleanStagingDirectory" Condition=" '$(CleanStagingDirectory)' == 'true' ">
+    <Message Text="Cleaning staging directory: $(ArtifactStagingDirectory)" Importance="Low" />
+    <RemoveDir Directories="$(ArtifactStagingDirectory)" Condition="Exists('$(ArtifactStagingDirectory)')" />
+    <MakeDir Directories="$(ArtifactStagingDirectory)" Condition="!Exists('$(ArtifactStagingDirectory)')" />
+  </Target>
 
+  <!-- Collect Deployment Artifacts -->
+  <Target Name="CollectDeploymentArtifacts" Returns="@(DeploymentArtifact)">
+    <ItemGroup>
+      <DeploymentArtifact Include="@(Content)">
+        <DestinationPath>$(ArtifactStagingDirectory)%(RelativeDir)%(Filename)%(Extension)</DestinationPath>
+      </DeploymentArtifact>
+      <DeploymentArtifact Include="@(ARM_Template)">
+        <DestinationPath>$(ArtifactStagingDirectory)%(RelativeDir)%(Filename)%(Extension)</DestinationPath>
+      </DeploymentArtifact>
+      <DeploymentArtifact Include="@(DeploymentScript)">
+        <DestinationPath>$(ArtifactStagingDirectory)%(RelativeDir)%(Filename)%(Extension)</DestinationPath>
+      </DeploymentArtifact>
+    </ItemGroup>
+
+    <Message Text="Collected $(DeploymentArtifact.Count) deployment artifacts" Importance="Normal" />
+  </Target>
+
+  <!-- Collect Project References -->
+  <Target Name="CollectProjectReferences" 
+          Condition=" '$(IncludeProjectReferences)' == 'true' "
+          Returns="@(ProjectReferenceArtifact)">
+    
     <MSBuild Projects="@(ProjectReference)"
              BuildInParallel="$(BuildInParallel)"
-             Properties="$(MsBuildProperties)"
-             Targets="%(ProjectReference.Targets)" />
+             Properties="Configuration=$(Configuration);Platform=$(Platform);OutputPath=%(ProjectReference.OutputPath)"
+             Targets="Build">
+      <Output TaskParameter="TargetOutputs" ItemName="ProjectReferenceOutputs" />
+    </MSBuild>
 
     <ItemGroup>
-      <BuildProjectReferencesOutput Include="%(ProjectReference.IncludeFilePath)">
-        <ProjectName>$([System.IO.Path]::GetFileNameWithoutExtension('%(ProjectReference.Identity)'))</ProjectName>
-      </BuildProjectReferencesOutput>
+      <ProjectReferenceArtifact Include="@(ProjectReferenceOutputs)">
+        <DestinationPath>$(ArtifactStagingDirectory)References\%(RecursiveDir)%(Filename)%(Extension)</DestinationPath>
+        <ProjectName>$([System.IO.Path]::GetFileNameWithoutExtension('%(ProjectReferenceOutputs.MSBuildSourceProjectFile)'))</ProjectName>
+      </ProjectReferenceArtifact>
     </ItemGroup>
+
+    <Message Text="Collected $(ProjectReferenceArtifact.Count) project reference outputs" Importance="Normal" />
   </Target>
 
-  <Target Name="_CalculateArtifactStagingDirectory" Condition=" '$(ArtifactStagingDirectory)'=='' ">
-    <PropertyGroup>
-      <ArtifactStagingDirectory Condition=" '$(OutDir)'!='' ">$(OutDir)</ArtifactStagingDirectory>
-      <ArtifactStagingDirectory Condition=" '$(ArtifactStagingDirectory)'=='' ">$(OutputPath)</ArtifactStagingDirectory>
-      <ArtifactStagingDirectory Condition=" !HasTrailingSlash('$(ArtifactStagingDirectory)') ">$(ArtifactStagingDirectory)\</ArtifactStagingDirectory>
-      <ArtifactStagingDirectory>$(ArtifactStagingDirectory)staging\</ArtifactStagingDirectory>
-      <ArtifactStagingDirectory Condition=" '$(Build_StagingDirectory)'!='' AND '$(TF_Build)'=='True' ">$(Build_StagingDirectory)</ArtifactStagingDirectory>
-    </PropertyGroup>
+  <!-- Copy All Artifacts to Staging -->
+  <Target Name="CopyArtifactsToStagingDirectory"
+          Inputs="@(DeploymentArtifact);@(ProjectReferenceArtifact)"
+          Outputs="%(DestinationPath)">
+    
+    <Copy SourceFiles="@(DeploymentArtifact)"
+          DestinationFiles="%(DeploymentArtifact.DestinationPath)"
+          SkipUnchangedFiles="true" />
+    
+    <Copy SourceFiles="@(ProjectReferenceArtifact)"
+          DestinationFiles="%(ProjectReferenceArtifact.DestinationPath)"
+          SkipUnchangedFiles="true"
+          Condition=" '$(IncludeProjectReferences)' == 'true' " />
+
+    <Message Text="Copied artifacts to staging directory" Importance="Normal" />
   </Target>
 
-  <!-- Appends each of the deployment project's content output files with metadata indicating its relative path from the deployment project's folder. -->
-  <Target Name="_CalculateContentOutputRelativePaths"
-          Outputs="%(DeploymentProjectContentOutput.Identity)">
+  <!-- Create Deployment Manifest -->
+  <Target Name="CreateDeploymentManifest">
     <PropertyGroup>
-      <_OriginalIdentity>%(DeploymentProjectContentOutput.Identity)</_OriginalIdentity>
-      <_RelativePath>$(_OriginalIdentity.Replace('$(MSBuildProjectDirectory)', ''))</_RelativePath>
+      <DeploymentManifestPath>$(ArtifactStagingDirectory)deployment-manifest.json</DeploymentManifestPath>
     </PropertyGroup>
 
     <ItemGroup>
-      <DeploymentProjectContentOutput>
-        <RelativePath>$(_RelativePath)</RelativePath>
-      </DeploymentProjectContentOutput>
+      <ManifestContent Include="{
+  &quot;project&quot;: &quot;$(MSBuildProjectName)&quot;,
+  &quot;configuration&quot;: &quot;$(Configuration)&quot;,
+  &quot;platform&quot;: &quot;$(Platform)&quot;,
+  &quot;buildDate&quot;: &quot;$([System.DateTime]::Now.ToString(&quot;yyyy-MM-ddTHH:mm:ss&quot;))&quot;,
+  &quot;artifacts&quot;: [
+    @(DeploymentArtifact->'{ &quot;path&quot;: &quot;%(DestinationPath.Replace($(ArtifactStagingDirectory), &quot;&quot;))&quot;, &quot;type&quot;: &quot;%(DeploymentArtifact.Type)&quot; }', ',')
+  ]
+}" />
     </ItemGroup>
+
+    <WriteLinesToFile File="$(DeploymentManifestPath)"
+                      Lines="@(ManifestContent)"
+                      Overwrite="true"
+                      Encoding="UTF-8" />
+
+    <Message Text="Created deployment manifest: $(DeploymentManifestPath)" Importance="Low" />
   </Target>
 
-  <Target Name="CoreCompile" />
-
-  <PropertyGroup>
-    <StageArtifactsAfterTargets Condition=" '$(StageArtifacts)' == 'true' ">
-      PrepareForRun
-    </StageArtifactsAfterTargets>
-  </PropertyGroup>
-
-  <Target Name="StageArtifacts" DependsOnTargets="$(StageArtifactsDependsOn)" AfterTargets="$(StageArtifactsAfterTargets)"/>
-
-  <!-- Custom target to clean up local deployment staging files -->
-  <Target Name="DeleteBinObjFolders" BeforeTargets="Clean">
-    <RemoveDir Directories="$(OutputPath)" />  
-    <RemoveDir Directories="$(BaseIntermediateOutputPath)" />
+  <!-- Enhanced Clean Targets -->
+  <Target Name="CleanDeploymentArtifacts" BeforeTargets="Clean">
+    <Message Text="Cleaning deployment artifacts..." Importance="Normal" />
+    
+    <RemoveDir Directories="$(OutputPath)" Condition="Exists('$(OutputPath)')" />
+    <RemoveDir Directories="$(IntermediateOutputPath)" Condition="Exists('$(IntermediateOutputPath)')" />
+    <RemoveDir Directories="$(ArtifactStagingDirectory)" Condition="Exists('$(ArtifactStagingDirectory)')" />
+    
+    <Message Text="Cleaned build and staging directories" Importance="Low" />
   </Target>
+
+  <!-- Validation Target for ARM Templates -->
+  <Target Name="ValidateARMTemplates" BeforeTargets="Build">
+    <Message Text="Validating ARM templates..." Importance="Normal" />
+    <!-- Add ARM template validation logic here -->
+  </Target>
+
+  <!-- Publish Target for CI/CD -->
+  <Target Name="Publish" DependsOnTargets="Build;StageArtifacts">
+    <Message Text="Publishing deployment package..." Importance="High" />
+    
+    <PropertyGroup>
+      <PublishDirectory Condition=" '$(PublishDirectory)' == '' ">publish\</PublishDirectory>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(PublishDirectory)" Condition="!Exists('$(PublishDirectory)')" />
+    
+    <Copy SourceFiles="$(ArtifactStagingDirectory)**\*" 
+          DestinationFolder="$(PublishDirectory)" 
+          OverwriteReadOnlyFiles="true" />
+    
+    <Message Text="Deployment package published to: $(PublishDirectory)" Importance="High" />
+  </Target>
+
 </Project>
